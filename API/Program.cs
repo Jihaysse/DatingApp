@@ -1,5 +1,7 @@
+using API.Data;
 using API.Extensions;
 using API.Middleware;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +15,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -33,4 +37,19 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.Run();
+// Seed random data
+using var scope = app.Services.CreateScope();
+var serviceProviders = scope.ServiceProvider;
+try 
+{
+    var context = serviceProviders.GetRequiredService<DataContext>();
+    await context.Database.MigrateAsync();
+    await Seed.SeedUsersAsync(context);
+} 
+catch (Exception exception)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(exception, "An error occured during migration");
+}
+
+await app.RunAsync();
